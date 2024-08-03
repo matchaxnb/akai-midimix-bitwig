@@ -23,7 +23,7 @@ This script is based on my needs. Feel free to modify it :)
 
 # To do
 - `Bank left` and `Bank right` are currently not used.
-- If you *rec arm* are the channel (solo+mute), the LEDs are currently not working
+- If you *rec arm* the channel (solo+mute), the LEDs are currently not working
 
 # Plans
 Currently, I do not have plans to work on the script. Feel free to fork it.
