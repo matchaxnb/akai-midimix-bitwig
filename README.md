@@ -18,7 +18,7 @@ This script is based on my needs. Feel free to modify it :)
 - Master fader will handle the main output
 - `Rec Arm` buttons are mapped to *mute* the channels (since it uses the red led, and for me red is connected to muting channels)
 - The `Mute` buttons are mapped to *solo* the channels (since the yellow LED signals soloed channels for me)
-- If you press `Solo` + `Mute` you are will *rec arm* the specific channel. I use the `Solo` button mor like "shift".
+- If you press `Solo` + `Mute` you are will *rec arm* the specific channel. I use the `Solo` button more like "shift".
 - The `encoders` will control the FX sends, where the top row handles `FX1`, the middle row `FX2`, and the bottom row handles `FX3`.
 
 # To do
