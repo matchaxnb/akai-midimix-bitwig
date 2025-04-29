@@ -7,7 +7,7 @@ host.defineMidiPorts(1, 1)
 /* ------------------------------------------------------ */
 /*                    DEBUGGING FEATURE                   */
 /* ------------------------------------------------------ */
-var DEBUG = false
+var DEBUG = true
 
 function debug(bool = false) {
    DEBUG = bool
@@ -31,6 +31,7 @@ const NOTE_ON = 0x90
 const NOTE_OFF = 0x80
 const CC = 0xb0
 
+const NUM_BANKS = 7
 
 /* ------------------------------------------------------ */
 /*                          NAMES                         */
@@ -50,6 +51,9 @@ const RECO = "arm"
 /*                         CONSTS                         */
 /* ------------------------------------------------------ */
 var SHIFT_PRESSED = false
+var BANKL_PRESSED = false
+var BANKR_PRESSED = false
+var BANK_COUNTER = 0
 
 /* ------------------------------------------------------ */
 /*                        HARDWARE                        */
@@ -94,15 +98,15 @@ const CC_MAPPING = {
       lo: 30,
       hi: 53,
    },
-   [SOLO]: {
+   [MUTE]: {
       lo: 12,
       hi: 19
    },
-   [MUTE]: {
+   [RECO]: {
       lo: 2,
       hi: 9,
    },
-   [RECO]: {
+   [SOLO]: {
       lo: 20,
       hi: 27,
    },
@@ -114,9 +118,9 @@ const CC_MAPPING = {
 }
 
 /* ------------------------- LED ------------------------ */
-const LED_SOLO = [0x01, 0x04, 0x07, 0x0A, 0x0D, 0x10, 0x13, 0x16]
-const LED_MUTE = [0x03, 0x06, 0x09, 0x0C, 0x0F, 0x12, 0x15, 0x18]
-const LED_RECO = [0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6A, 0x6B]  // ! NOT WORKING ATM
+const LED_MUTE = [0x01, 0x04, 0x07, 0x0A, 0x0D, 0x10, 0x13, 0x16]
+const LED_RECO = [0x03, 0x06, 0x09, 0x0C, 0x0F, 0x12, 0x15, 0x18]
+const LED_SOLO = [0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6A, 0x6B]  // ! NOT WORKING ATM
 
 const LED_MAPPING = {
    [SOLO]: LED_SOLO, // row 1
@@ -167,8 +171,8 @@ function init() {
    // sending to controller (midimix) -> LED
    midiOut = host.getMidiOutPort(0)
 
-   // 8 channel faders, 3 sends, 0 scenes
-   trackBank = host.createMainTrackBank(8, 3, 0)
+   // 8 channel faders, 24 sends, 0 scenes
+   trackBank = host.createMainTrackBank(8, NUM_BANKS * 3 + 3, 0)
 
    // main fader
    mainFader = host.createMasterTrack(0)
@@ -189,9 +193,13 @@ function handleNoteOn(cc, value) {
       switch (cc) {
          case BANKL:
             log("BANK LEFT ON")
+            BANKL_PRESSED = true;
+            BANK_COUNTER = Math.max(BANK_COUNTER - 1, 0);
             break;
          case BANKR:
             log("BANK RIGHT ON")
+            BANKR_PRESSED = true;
+            BANK_COUNTER = Math.min(BANK_COUNTER + 1, NUM_BANKS);
             break;
          case SHIFT:
             SHIFT_PRESSED = !SHIFT_PRESSED && cc == SHIFT
@@ -213,9 +221,11 @@ function handleNoteOff(cc, value) {
       switch (cc) {
          case BANKL:
             log("BANK LEFT OFF")
+            BANKL_PRESSED = false
             break;
          case BANKR:
             log("BANK RIGHT OFF")
+            BANKR_PRESSED = false
             break;
          case SHIFT:
             SHIFT_PRESSED = !SHIFT_PRESSED && cc == SHIFT
@@ -252,8 +262,15 @@ function handleChannelVolume(cc, value) {
 
 /* ----------------------- BUTTONS ---------------------- */
 function handleButton(cc, type, value) {
+   debug(`BANK number is ${BANK_COUNTER}`);
    try {
-      if (value === ON) {
+      if (BANKL_PRESSED && BANKR_PRESSED && value === ON) {
+         var index = cc - CC_MAPPING[type].lo
+         var channel = trackBank.getChannel(index)
+         BANK_COUNTER = Math.max(0, Math.min(index, NUM_BANKS))
+
+      }
+      else if (value === ON) {
          var index = cc - CC_MAPPING[type].lo
          var channel = trackBank.getChannel(index)
          var value = toggleValue(LED_CACHE[type][index])
@@ -273,9 +290,12 @@ function handleButton(cc, type, value) {
 /* ---------------------- ENCODERS ---------------------- */
 function handleEncoder(cc, value) {
    try {
+      log(`current bank: ${BANK_COUNTER}`)
       log(`handleEncoder -> ${cc} : ${value}`)
+      var offset_send = BANK_COUNTER * 3
       var chan_index = KNOBS[cc].chan
-      var send_index = KNOBS[cc].send
+      var send_index = KNOBS[cc].send + offset_send
+      log(`setting send ${send_index} on channel ${chan_index} to value ${value}`)
       var channel = trackBank.getChannel(chan_index)
       channel.getSend(send_index).set(value, 128)
       return
